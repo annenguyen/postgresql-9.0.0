@@ -111,17 +111,23 @@ MultiExecHash(HashState *node)
 			int			bucketNumber;
 
 			bucketNumber = ExecHashGetSkewBucket(hashtable, hashvalue);
-			if (bucketNumber != INVALID_SKEW_BUCKET_NO)
-			{
-				/* It's a skew tuple, so put it into that hash table */
-				ExecHashSkewTableInsert(hashtable, slot, hashvalue,
-										bucketNumber);
-			}
-			else
-			{
-				/* Not subject to skew optimization, so insert normally */
-				ExecHashTableInsert(hashtable, slot, hashvalue);
-			}
+
+			// CSI3130 take out this if-else statement, this should disable multiple batches (4.3)
+			
+			// if (bucketNumber != INVALID_SKEW_BUCKET_NO)
+			// {
+			// 	/* It's a skew tuple, so put it into that hash table */
+			// 	ExecHashSkewTableInsert(hashtable, slot, hashvalue,
+			// 							bucketNumber);
+			// }
+			// else
+			// {
+			// 	/* Not subject to skew optimization, so insert normally */
+			// 	ExecHashTableInsert(hashtable, slot, hashvalue);
+			// }
+
+			/* Not subject to skew optimization, so insert normally */
+			ExecHashTableInsert(hashtable, slot, hashvalue);
 			hashtable->totalTuples += 1;
 		}
 	}
