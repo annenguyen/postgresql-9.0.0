@@ -447,6 +447,7 @@ typedef struct ExecRowMark
 typedef struct TupleHashEntryData *TupleHashEntry;
 typedef struct TupleHashTableData *TupleHashTable;
 
+
 typedef struct TupleHashEntryData
 {
 	/* firstTuple must be the first field in this struct! */
@@ -1438,12 +1439,21 @@ typedef struct MergeJoinState
 /* ----------------
  *	 HashJoinState information
  *
- *		hj_HashTable			hash table for the hashjoin
- *								(NULL if table not built yet)
- *		hj_CurHashValue			hash value for current outer tuple
- *		hj_CurBucketNo			regular bucket# for current outer tuple
- *		hj_CurSkewBucketNo		skew bucket# for current outer tuple
- *		hj_CurTuple				last inner tuple matched to current outer
+ *		hj_OuterHashTable			outer hash table for the hashjoin
+ *									(NULL if table not built yet)
+ *		hj_InnerHashTable			inner hash table for the hashjoin
+ *									(NULL if table not built yet)
+ *		hj_OuterCurHashValue			hash value for current outer tuple
+ *		hj_InnerCurHashValue			hash value for current inner tuple
+ *		hj_OuterCurBucketNo			regular bucket# for current outer tuple
+ *		hj_InnerCurBucketNo			regular bucket# for current inner tuple
+ *		hj_OuterCurSkewBucketNo		skew bucket# for current outer tuple
+ *		hj_InnerCurSkewBucketNo		skew bucket# for current inner tuple
+ *		hj_OuterCurTuple				last outer tuple matched to current outer
+ *								tuple, or NULL if starting search
+ *								(hj_CurXXX variables are undefined if
+ *								OuterTupleSlot is empty!)
+ *		hj_InnerCurTuple				last outer tuple matched to current outer
  *								tuple, or NULL if starting search
  *								(hj_CurXXX variables are undefined if
  *								OuterTupleSlot is empty!)
@@ -1451,12 +1461,19 @@ typedef struct MergeJoinState
  *		hj_InnerHashKeys		the inner hash keys in the hashjoin condition
  *		hj_HashOperators		the join operators in the hashjoin condition
  *		hj_OuterTupleSlot		tuple slot for outer tuples
- *		hj_HashTupleSlot		tuple slot for hashed tuples
+ *		hj_InnerTupleSlot		tuple slot for inner tuples
+ *		hj_OuterHashTupleSlot		tuple slot for outer hashed tuples
+ *		hj_InnerHashTupleSlot		tuple slot for inner hashed tuples
+ *		hj_NullIOuterTupleSlot	prepared null tuple for left outer joins
  *		hj_NullInnerTupleSlot	prepared null tuple for left outer joins
  *		hj_FirstOuterTupleSlot	first tuple retrieved from outer plan
+ *		hj_FirstInnerTupleSlot	first tuple retrieved from inner plan 
  *		hj_NeedNewOuter			true if need new outer tuple on next call
+ *		hj_NeedNewInner			true if need new inner tuple on next call
  *		hj_MatchedOuter			true if found a join match for current outer
+ *		hj_MatchedInner			true if found a join match for current inner
  *		hj_OuterNotEmpty		true if outer relation known not empty
+ *		hj_InnerNotEmpty		true if inner relation known not empty
  * ----------------
  */
 
@@ -1468,21 +1485,44 @@ typedef struct HashJoinState
 {
 	JoinState	js;				/* its first field is NodeTag */
 	List	   *hashclauses;	/* list of ExprState nodes */
-	HashJoinTable hj_HashTable;
-	uint32		hj_CurHashValue;
-	int			hj_CurBucketNo;
-	int			hj_CurSkewBucketNo;
-	HashJoinTuple hj_CurTuple;
+	
+	HashJoinTable hj_OuterHashTable;
+	HashJoinTable hj_InnerHashTable;
+	
+	uint32		hj_OuterCurHashValue;
+	uint32		hj_InnerCurHashValue;
+	
+	int			hj_OuterCurBucketNo;
+	int			hj_InnerCurBucketNo;
+	
+	int			hj_OuterCurSkewBucketNo;
+	int			hj_InnerCurSkewBucketNo;
+	
+	HashJoinTuple hj_OuterCurTuple;
+	HashJoinTuple hj_InnerCurTuple;
+	
 	List	   *hj_OuterHashKeys;		/* list of ExprState nodes */
 	List	   *hj_InnerHashKeys;		/* list of ExprState nodes */
+	
 	List	   *hj_HashOperators;		/* list of operator OIDs */
+	
 	TupleTableSlot *hj_OuterTupleSlot;
-	TupleTableSlot *hj_HashTupleSlot;
+	TupleTableSlot *hj_InnerTupleSlot;
+	
 	TupleTableSlot *hj_NullInnerTupleSlot;
+	TupleTableSlot *hj_NullOuterTupleSlot;
+	
 	TupleTableSlot *hj_FirstOuterTupleSlot;
+	TupleTableSlot *hj_FirstInnerTupleSlot;
+	
 	bool		hj_NeedNewOuter;
+	bool		hj_NeedNewInner;
+	
 	bool		hj_MatchedOuter;
+	bool		hj_MatchedInner;
+	
 	bool		hj_OuterNotEmpty;
+	bool		hj_InnerNotEmpty;
 } HashJoinState;
 
 
