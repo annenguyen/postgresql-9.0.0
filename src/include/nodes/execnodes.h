@@ -1464,25 +1464,51 @@ typedef struct MergeJoinState
 typedef struct HashJoinTupleData *HashJoinTuple;
 typedef struct HashJoinTableData *HashJoinTable;
 
-typedef struct HashJoinState
-{
+typedef struct HashJoinState {
+
+	// CSI3130 replicate structures to support bi-directional probing
+	// all variables involving outer relation will be duplicated, one for inner relation probing
+	// and one for outer relation probing
 	JoinState	js;				/* its first field is NodeTag */
 	List	   *hashclauses;	/* list of ExprState nodes */
-	HashJoinTable hj_HashTable;
-	uint32		hj_CurHashValue;
-	int			hj_CurBucketNo;
-	int			hj_CurSkewBucketNo;
-	HashJoinTuple hj_CurTuple;
+	
+	// CSI3130 renamed, and added one
+	HashJoinTable hj_HashTableInner;
+	HashJoinTable hj_HashTableOuter;
+	
+	// CSI3130 renamed, and added one
+	uint32		hj_CurHashValueInner;
+	uint32		hj_CurHashValueOuter;
+	
+	// CSI3130 renamed, and added one
+	int			hj_CurBucketNoInner;
+	int			hj_CurBucketNoOuter;
+	// no skew needed in our implementation
+	// int			hj_CurSkewBucketNo;
+	
+	// CSI3130 renamed, and added one 
+	HashJoinTuple hj_CurTupleInner;
+	HashJoinTuple hj_CurTupleOuter;
 	List	   *hj_OuterHashKeys;		/* list of ExprState nodes */
 	List	   *hj_InnerHashKeys;		/* list of ExprState nodes */
 	List	   *hj_HashOperators;		/* list of operator OIDs */
+	
 	TupleTableSlot *hj_OuterTupleSlot;
-	TupleTableSlot *hj_HashTupleSlot;
+	TupleTableSlot *hj_InnerTupleSlot; //CSI3130 added
+	
+	// CSI3130 renamed, and added one
+	TupleTableSlot *hj_HashTupleSlotInner;
+	TupleTableSlot *hj_HashTupleSlotOuter;
 	TupleTableSlot *hj_NullInnerTupleSlot;
+
+	TupleTableSlot *hj_FirstInnerTupleSlot; // CSI3130 added
 	TupleTableSlot *hj_FirstOuterTupleSlot;
+
 	bool		hj_NeedNewOuter;
+	bool		hj_NeedNewInner; // CSI3130 added
 	bool		hj_MatchedOuter;
 	bool		hj_OuterNotEmpty;
+	bool		hj_InnerNotEmpty; // CSI3130 added
 } HashJoinState;
 
 
