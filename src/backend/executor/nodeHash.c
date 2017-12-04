@@ -52,14 +52,65 @@ static void ExecHashRemoveNextSkewBucket(HashJoinTable hashtable);
 /* ----------------------------------------------------------------
  *		ExecHash
  *
- *		stub for pro forma compliance
+ *		returns a single tuple 
  * ----------------------------------------------------------------
  */
+// CSI3130: Modified MultiExecHash() so that this function returns a tuple instead of an entire hash table
 TupleTableSlot *
 ExecHash(HashState *node)
 {
-	elog(ERROR, "Hash node does not support ExecProcNode call convention");
-	return NULL;
+	
+	PlanState  *outerNode;
+	List	   *hashkeys;
+	HashJoinTable hashtable;
+	TupleTableSlot *slot;
+	ExprContext *econtext;
+	uint32		hashvalue;
+
+	/* must provide our own instrumentation support */
+	if (node->ps.instrument)
+		InstrStartNode(node->ps.instrument);
+
+	/*
+	 * get state info from node
+	 */
+	outerNode = outerPlanState(node);
+	hashtable = node->hashtable;
+
+	/*
+	 * set expression context
+	 */
+	hashkeys = node->hashkeys;
+	econtext = node->ps.ps_ExprContext;
+
+	/*
+	 * get a single inner tuple and insert into the hash table (or temp files)
+	 */
+	
+	slot = ExecProcNode(outerNode);
+	
+	if (!TupIsNull(slot)){
+		
+		/* We have to compute the hash value */
+		econtext->ecxt_innertuple = slot;
+		econtext->ecxt_outertuple = slot; // CSI3130: if the tuple is from the outer relation
+		hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys, false, false, &hashvalue);
+		ExecHashTableInsert(hashtable, slot, hashvalue);
+		hashtable->totalTuples += 1;
+	}
+	else{
+		/* must provide our own instrumentation support */
+		if (node->ps.instrument)
+			InstrStopNode(node->ps.instrument, hashtable->totalTuples);
+		return NULL;
+	}
+
+	/* must provide our own instrumentation support */
+	if (node->ps.instrument)
+		InstrStopNode(node->ps.instrument, hashtable->totalTuples);
+	
+	return slot; // return the tuple 	
+	
 }
 
 /* ----------------------------------------------------------------
