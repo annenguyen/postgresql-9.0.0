@@ -55,11 +55,11 @@ static void ExecHashRemoveNextSkewBucket(HashJoinTable hashtable);
  *		returns a single tuple 
  * ----------------------------------------------------------------
  */
-// CSI3130: Modified MultiExecHash() so that this function returns a tuple instead of an entire hash table
 TupleTableSlot *
 ExecHash(HashState *node)
 {
-	
+	// CSI3130: Modified MultiExecHash() so that this function returns a tuple instead of an entire hash table
+
 	PlanState  *outerNode;
 	List	   *hashkeys;
 	HashJoinTable hashtable;
@@ -89,27 +89,35 @@ ExecHash(HashState *node)
 	
 	slot = ExecProcNode(outerNode);
 	
-	if (!TupIsNull(slot)){
-		
-		/* We have to compute the hash value */
+	if (!TupIsNull(slot)){ // CSI3130 added the ! and the enclosed intructions
+ 		// CSI 3130 we take the commands from MultiExecJoin, but without the code
+ 		// used for partioning, i.e. all bucketNumber code is removed
+ 		
+ 		/* We have to compute the hash value */
+		// CSI3130 store the tuple as both the inner and outer of the ExecContext object
 		econtext->ecxt_innertuple = slot;
-		econtext->ecxt_outertuple = slot; // CSI3130: if the tuple is from the outer relation
+		econtext->ecxt_outertuple = slot; 
+
+		// CSI3130 get the hashed value, this is in an if statement in MultiExecJoin,
+		// we call and assign to hash value explicitly here
 		hashvalue = ExecHashGetHashValue(hashtable, econtext, hashkeys, false, false, &hashvalue);
 		ExecHashTableInsert(hashtable, slot, hashvalue);
 		hashtable->totalTuples += 1;
 	}
 	else{
+		// CSI3130 if the slot is null we stop and return null
 		/* must provide our own instrumentation support */
 		if (node->ps.instrument)
 			InstrStopNode(node->ps.instrument, hashtable->totalTuples);
 		return NULL;
 	}
-
+	
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
 		InstrStopNode(node->ps.instrument, hashtable->totalTuples);
 	
-	return slot; // return the tuple 	
+	
+	return slot; // CSI3130 return the tuple 	
 	
 }
 
@@ -151,6 +159,7 @@ MultiExecHash(HashState *node)
 	 */
 	for (;;)
 	{
+		// CSI3130 modification done to disable mulitple batches
 		slot = ExecProcNode(outerNode);
 		if (TupIsNull(slot))
 			break;
@@ -159,22 +168,26 @@ MultiExecHash(HashState *node)
 		if (ExecHashGetHashValue(hashtable, econtext, hashkeys, false, false,
 								 &hashvalue))
 		{
-			int			bucketNumber;
+			// int			bucketNumber;
 
-			bucketNumber = ExecHashGetSkewBucket(hashtable, hashvalue);
-			if (bucketNumber != INVALID_SKEW_BUCKET_NO)
-			{
-				/* It's a skew tuple, so put it into that hash table */
-				ExecHashSkewTableInsert(hashtable, slot, hashvalue,
-										bucketNumber);
-			}
-			else
-			{
-				/* Not subject to skew optimization, so insert normally */
-				ExecHashTableInsert(hashtable, slot, hashvalue);
-			}
+			// bucketNumber = ExecHashGetSkewBucket(hashtable, hashvalue);
+			// if (bucketNumber != INVALID_SKEW_BUCKET_NO)
+			// {
+				// /* It's a skew tuple, so put it into that hash table */
+				// ExecHashSkewTableInsert(hashtable, slot, hashvalue,
+										// bucketNumber);
+			// }
+			// else
+			// {
+				// /* Not subject to skew optimization, so insert normally */
+				// ExecHashTableInsert(hashtable, slot, hashvalue);
+				
+			// }
+			ExecHashTableInsert(hashtable, slot, hashvalue);
 			hashtable->totalTuples += 1;
+			
 		}
+		
 	}
 
 	/* must provide our own instrumentation support */
